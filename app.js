@@ -1,61 +1,117 @@
 const express = require("express");
+const dotenv = require("dotenv");
+const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
+const path = require("path");
+const multer = require("multer");
+const cors = require('cors');
+const authRoute = require("./routes/authRoutes");
+const userRoute = require("./routes/UserRoutes");
+const productController = require("./controllers/Product");
+const productRoute = require("./routes/ProductRoutes")
+const isAuthenticated = require("./middlewares/isAuthenticated");
+
 const app = express();
-const port = process.env.PORT || 3001;
 
-app.get("/", (req, res) => res.type('html').send(html));
+app.use(cors({
+  origin: '*'
+}));
 
-const server = app.listen(port, () => console.log(`Example app listening on port ${port}!`));
+dotenv.config();
+// multer middlewares
+const storage = multer.diskStorage({
+  destination : (req ,file , cb)=>{
+    cb(null , path.join(__dirname , 'public' , 'images'))
+  } , 
+  filename : (req ,file , cb)=>{
+    cb(null , Date.now() + file.originalname )
+  }
+})
 
-server.keepAliveTimeout = 120 * 1000;
-server.headersTimeout = 120 * 1000;
+const upload = multer({storage : storage})
 
-const html = `
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Hello from Render!</title>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-    <script>
-      setTimeout(() => {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          disableForReducedMotion: true
-        });
-      }, 500);
-    </script>
-    <style>
-      @import url("https://p.typekit.net/p.css?s=1&k=vnd5zic&ht=tk&f=39475.39476.39477.39478.39479.39480.39481.39482&a=18673890&app=typekit&e=css");
-      @font-face {
-        font-family: "neo-sans";
-        src: url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/l?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff2"), url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/d?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("woff"), url("https://use.typekit.net/af/00ac0a/00000000000000003b9b2033/27/a?primer=7cdcb44be4a7db8877ffa5c0007b8dd865b3bbc383831fe2ea177f62257a9191&fvd=n7&v=3") format("opentype");
-        font-style: normal;
-        font-weight: 700;
-      }
-      html {
-        font-family: neo-sans;
-        font-weight: 700;
-        font-size: calc(62rem / 16);
-      }
-      body {
-        background: white;
-      }
-      section {
-        border-radius: 1em;
-        padding: 1em;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        margin-right: -50%;
-        transform: translate(-50%, -50%);
-      }
-    </style>
-  </head>
-  <body>
-    <section>
-      Hello from Render!
-    </section>
-  </body>
-</html>
-`
+exports.upload = upload
+
+app.use(express.static(path.join(__dirname , 'public')))
+// parsers
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// webhooks
+app.post('/webhook' , express.raw({type : 'application/json'}) , productController.StripeWebHook )
+
+// parse body
+app.use(bodyParser.json());
+
+
+// Routes
+app.use('/products' , upload.array('images'), productRoute)
+app.use('/auth' , authRoute)
+app.use('/users' , isAuthenticated , userRoute)
+
+
+app.use("/test" , isAuthenticated , (req, res, next) => {
+  res.status(200).json({
+    message: "TARSH",
+  });
+  next();
+});
+
+app.use((error, req, res, next) => {
+    console.log(error);
+    const status = error.statusCode || 500;
+    const message = error.message;
+    res.status(status).json({
+      message: message,
+    });
+  });
+  
+
+app.listen(process.env.PORT, () => {
+  mongoose
+    .connect(
+      `mongodb+srv://mvhmxud:${process.env.DATABASE_PASSWORD}@cluster0.i1zsn.mongodb.net`
+    )
+    .then((res) => {
+      console.log(
+        "Database connected and server listening on port ",
+        process.env.PORT,
+        "⚡🔌"
+      );
+    })
+    .catch((err) => {
+      console.log("err ======> ",err);
+    });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// //
+// const user = new User({
+//     name: "Mahmoud",
+//     email: "mvhmxud",
+//     password: "123456789",
+//     address: "21 MohamedALI st suez , egypt",
+//     invoices: [],
+//     role: "admin",
+//   });
+
+//   user
+//     .save()
+//     .then((res) => {
+//       console.log("User created successfully ! ", res);
+//     })
+//     .catch((err) => {
+//         console.log(err.message)
+//     });
+//  //
